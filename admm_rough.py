@@ -116,7 +116,7 @@ def admm_convex(graph : np.array,
         #compute residuals
         for i in range(n):
             r[i]=A[i]@x_k[i]-prices[i]
-            
+
 
     return x_k
 
@@ -131,4 +131,4 @@ for i in range(5): adj_mat[i][i]=0.0
 house_data=np.random.rand(5,3)
 prices=np.random.rand(5)
 
-#x,z,u=admm_convex(adj_mat,house_data,prices,.5)
+#x=admm_convex(adj_mat,house_data,prices,.5)
