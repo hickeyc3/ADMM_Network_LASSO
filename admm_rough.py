@@ -17,6 +17,7 @@ from PIL import Image
 #from generate_graph import adj_mat, house_data, house_list, house_dict, prices
 
 
+mu=.5
 
 #================================================================
 #   print_graph(g) - takes in snap graph to print out, also
@@ -48,7 +49,7 @@ def admm_convex(graph : np.array,
 
 
     #seems to diverge if any smaller?
-    epsilon=.003
+    epsilon=10**(-8)
 
 
 
@@ -71,10 +72,11 @@ def admm_convex(graph : np.array,
     z=np.zeros((n,n,len(data_mat[0])+1))
     u=np.zeros((n,n,len(data_mat[0])+1))
 
-
     r=np.ones(n)
+    del_r=np.ones(n)
 
-    while LA.norm(r)>epsilon:
+    while LA.norm(del_r)>epsilon:
+    #while LA.norm(r)>epsilon:
 
 
         #do x-update for each node
@@ -82,15 +84,14 @@ def admm_convex(graph : np.array,
 
             #Change for each experiment, this is the f_i(x_i) in the obj func
             #################################################
-            mu=.5
-            obj = cp.sum_squares(house_data[i] @ x_variables[i]+x_offsets[i]-prices[i])+ mu*cp.sum_squares(x_variables[i])
+            obj = cp.sum_squares(data_mat[i] @ x_variables[i]+x_offsets[i]-prices[i])+ mu*cp.sum_squares(x_variables[i])
             ################################################
 
 
             #add terms to obj func for each neighbor
             for j in range(len(graph[i])):
                 if graph[i][j] != 0:
-                    obj += rho*.5*cp.sum_squares(cp.hstack((x_variables[i],x_offsets[i]))-z[i][j]+u[i][j])
+                    obj += rho*mu*cp.sum_squares(cp.hstack((x_variables[i],x_offsets[i]))-z[i][j]+u[i][j])
 
 
             prob = cp.Problem(cp.Minimize(obj))
@@ -112,13 +113,57 @@ def admm_convex(graph : np.array,
                     u[i][j]+=(x_k[i]-z[i][j])
 
 
-
+        old_r=np.copy(r)
         #compute residuals
         for i in range(n):
             r[i]=A[i]@x_k[i]-prices[i]
 
 
-    return x_k
+        del_r=old_r-r
+        #print(LA.norm(r))
+    return x_k,z,u
+
+def regularization_path(graph, data_mat, prices):
+
+    n=np.shape(graph)[0]
+    i=np.random.random_integers(n-1)
+    j=np.copy(i)
+    while j == i:
+        j=np.random.random_integers(n-1)
+
+    x_values,z,u=admm_convex(adj_mat,house_data,prices,0)
+
+    x=(x_values[i]+x_values[j])/2
+
+    #Change this for each experiment, the gradient evaluations of f_i and f_j
+    #########################################################################
+    df_i = 2*(data_mat[i] @ x[:-1]+x[-1]-prices[i])*np.hstack((data_mat[i],1))+mu*2*(np.hstack((x[:-1],0)))
+
+
+    df_j = 2*(data_mat[j] @ x[:-1]+x[-1]-prices[j])*np.hstack((data_mat[j],1))+mu*2*(np.hstack((x[:-1],0)))
+    ########################################################################
+
+#    cp.sum_squares(data_mat[i] @ x_values[i]+x_offsets[i]-prices[i])+ mu*cp.sum_squares(x_variables[i])
+
+    #initial lambda
+    l = .01*(LA.norm(df_i)+LA.norm(df_j))/(2*graph[i][j])
+
+    #TO DO: fix initial lambda if possible
+    l=1
+
+    old_x=np.ones(len(x))
+
+    #while LA.norm(old_x-x) > 0:
+    while l < 100:
+        old_x=np.copy(x)
+        x,z,u=admm_convex(adj_mat,house_data,prices,l)
+        l+=1
+
+        if l % 10 == 0:
+            print(l,"% complete")
+        #print (LA.norm(old_x-x))
+
+    return x
 
 
 #example on how to run for a node with random adjacency matrix and constants,
@@ -130,5 +175,3 @@ adj_mat=adj_mat @ adj_mat.T
 for i in range(5): adj_mat[i][i]=0.0
 house_data=np.random.rand(5,3)
 prices=np.random.rand(5)
-
-#x=admm_convex(adj_mat,house_data,prices,.5)
