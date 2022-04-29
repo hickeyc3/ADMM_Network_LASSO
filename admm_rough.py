@@ -176,7 +176,10 @@ for i in range(5): adj_mat[i][i]=0.0
 house_data=np.random.rand(5,3)
 prices=np.random.rand(5)
 
-#x=regularization_path(adj_mat,house_data,prices)
+x=regularization_path(adj_mat,house_data,prices)
 
 n=np.shape(adj_mat)[0]
 A=np.hstack((house_data,np.ones((n,1))))
+errors=np.zeros(n)
+for i in range(n):
+    errors[i]=np.abs(A[i]@x[i]-price[i])/prices[i]
