@@ -103,7 +103,8 @@ line_count=0
 house_count=0
 
 #store relevant house data for features and actual price
-house_data=np.zeros((len(house_list),4))
+house_data=np.zeros((len(house_list),3))
+prices=np.zeros(len(house_list))
 for l in file:
     line_count+=1
 
@@ -121,7 +122,7 @@ for l in file:
         house_data[house_count][2]=float(h[6])
 
         #store actual price
-        house_data[house_count][3]=float(h[9])
+        prices[house_count]=float(h[9])
 
 
         house_count+=1
@@ -143,7 +144,7 @@ for e in edgeWeights:
     i=e.GetVal1()
     j=e.GetVal2()
     weight=edgeWeights(e)
-    
+
     edge_list[k][0]=i
     edge_list[k][1]=j
     edge_list[k][2]=weight
