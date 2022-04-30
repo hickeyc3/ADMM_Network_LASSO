@@ -5,13 +5,17 @@ import warnings
 from PIL import Image
 import math
 
-warnings.filterwarnings("ignore")
+#uncomment to visualize graph
+#import matplotlib.pyplot as plt
+#import networkx as nx
+
 
 np.random.seed(8)
 
+warnings.filterwarnings("ignore")
 
 neighbors=5
-train_set_size=20
+train_set_size=700
 test_set_size=20
 
 
@@ -61,7 +65,8 @@ train_labels=np.zeros(train_set_size)
 train_locations=[]
 
 for k in range(train_set_size):
-    i=np.random.random_integers(full_count-k)
+
+    i=np.random.randint(full_count)
 
     train_data[k]=full_data[i][:3]
     train_labels[k]=full_data[i][3]
@@ -69,7 +74,10 @@ for k in range(train_set_size):
     train_list.append((i,addr[i]))
 
     full_data=np.delete(full_data,i,0)
-    full_count=full_count-k
+
+
+
+    full_count=full_count-1
 
 test_data=np.zeros((test_set_size,3))
 test_list=[]
@@ -77,7 +85,7 @@ test_labels=np.zeros(test_set_size)
 test_locations=[]
 
 for k in range(test_set_size):
-    i=np.random.random_integers(full_count-k)
+    i=np.random.randint(full_count)
 
     test_data[k]=full_data[i][:3]
     test_labels[k]=full_data[i][3]
@@ -85,7 +93,7 @@ for k in range(test_set_size):
     test_list.append((i,addr[i]))
 
     full_data=np.delete(full_data,i,0)
-    full_count=full_count-k
+    full_count=full_count-1
 
 
 #make adjacency matrix for adj_mat_train
@@ -104,13 +112,18 @@ for i in range(train_set_size):
     distances[i].sort(key = lambda node: node[0])
 
 
+
 for i in range(train_set_size):
     for j in range(neighbors):
 
         neighbor=distances[i][j][1]
+        if distances[i][j][0] == 0:
+            adj_mat_train[i][neighbor]=0
+            adj_mat_train[neighbor][i]=0
 
-        adj_mat_train[i][neighbor]=5/distances[i][j][0]
-        adj_mat_train[neighbor][i]=5/distances[i][j][0]
+        else:
+            adj_mat_train[i][neighbor]=5/distances[i][j][0]
+            adj_mat_train[neighbor][i]=5/distances[i][j][0]
 
 
 #make adjacency matrix for adj_mat_test
@@ -134,9 +147,12 @@ for i in range(test_set_size):
     for j in range(neighbors):
 
         neighbor=distances[i][j][1]
-
-        adj_mat_test[i][neighbor]=5/distances[i][j][0]
-        adj_mat_test[neighbor][i]=5/distances[i][j][0]
+        if distances[i][j][0] == 0:
+            adj_mat_test[i][neighbor]=0
+            adj_mat_test[neighbor][i]=0
+        else:
+            adj_mat_test[i][neighbor]=5/distances[i][j][0]
+            adj_mat_test[neighbor][i]=5/distances[i][j][0]
 
 
 edge_pairs_train=[]
@@ -155,3 +171,11 @@ for i in range(test_set_size):
 
         if adj_mat_test[i][j]!=0:
             edge_pairs_test.append((i,j))
+
+
+#uncomment to visualize graph
+"""
+g=nx.from_numpy_matrix(adj_mat_train)
+nx.draw(g, with_labels=True, node_size=100, alpha=1, linewidths=10)
+plt.show()
+"""
