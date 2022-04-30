@@ -5,7 +5,6 @@ from functools import partial
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
 import csv
-import snap
 import warnings
 from PIL import Image
 
@@ -22,17 +21,6 @@ from PIL import Image
 mu=.5
 rho=.001
 
-#================================================================
-#   print_graph(g) - takes in snap graph to print out, also
-#   saves .png to current directory
-#===============================================================
-def print_graph(g : snap.PNGraph) -> None:
-    labels = {}
-    for NI in g.Nodes():
-            labels[NI.GetId()] = str(NI.GetId())
-    g.DrawGViz(snap.gvlDot, "output.png", " ", labels)
-    img = Image.open('output.png')
-    img.show()
 
 
 #===============================================================================
