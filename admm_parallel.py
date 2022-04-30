@@ -231,7 +231,7 @@ def regularization_path( graph : np.array,
 
     n=np.shape(graph)[0]
     A=np.hstack((train_data,np.ones((n,1))))
-
+    """
     i=np.random.random_integers(n-1)
     j=np.copy(i)
     while j == i:
@@ -248,14 +248,11 @@ def regularization_path( graph : np.array,
 
     df_j = 2*(data_mat[j] @ x[:-1]+x[-1]-labels[j])*np.hstack((data_mat[j],1))+mu*2*(np.hstack((x[:-1],0)))
     ########################################################################
+    """
 
-#    cp.sum_squares(data_mat[i] @ x_values[i]+x_offsets[i]-labels[i])+ mu*cp.sum_squares(x_variables[i])
 
+    #l = .01*(LA.norm(df_i)+LA.norm(df_j))/(2*graph[i][j])
     #initial lambda
-    l = .01*(LA.norm(df_i)+LA.norm(df_j))/(2*graph[i][j])
-
-
-    #TO DO: fix initial lambda if possible
     l=.005
     percent_error=np.zeros(n)
 
