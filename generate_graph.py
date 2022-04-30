@@ -15,8 +15,8 @@ np.random.seed(8)
 warnings.filterwarnings("ignore")
 
 neighbors=5
-train_set_size=100
-test_set_size=50
+train_set_size=20
+test_set_size=10
 
 
 

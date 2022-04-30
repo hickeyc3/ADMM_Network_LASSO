@@ -118,7 +118,7 @@ def admm(graph : np.array,
 
 
     #seems to diverge if any smaller?
-    epsilon=10**(-6)
+    epsilon=10**(-7)
 
 
     n=np.shape(graph)[0]
@@ -132,9 +132,9 @@ def admm(graph : np.array,
     u_k=np.zeros((n,n,len(data_mat[0])+1))
 
     r=np.ones(n)
-    del_r=np.ones(n)
+    old_r=np.ones(n)
 
-    while LA.norm(del_r)>epsilon:
+    while LA.norm(old_r-r)>epsilon:
 
 
         #do x-update for each node, so this is n processes in parallel
@@ -177,15 +177,15 @@ def admm(graph : np.array,
         for e in range(len(edges)):
             u_k[edges[e][0]][edges[e][1]]=u[e][0]
 
+
         old_r=np.copy(r)
-        #compute residuals
+
+        #compute primal residuals
         for i in range(n):
             r[i]=A[i]@x_k[i]-labels[i]
 
-        #break loop if we aren't improving any further for this lambda
-        del_r=old_r-r
 
-    return x_k,z_k,u_k
+    return x_k
 
 #===============================================================================
 #  global_average(labels) : baseline method to compute global average of house labels
@@ -202,9 +202,7 @@ def geographic( graph : np.array,
                 data_mat : np.array,
                 labels : np.array) -> np.array:
 
-    x,z,u=admm(graph,edges,data_mat,labels,0)
-
-    return x
+    return admm(graph,edges,data_mat,labels,0)
 
 #===============================================================================
 #  regularization_path (graph,data_mat,labels) - runs ADMM with increasing lambda values
@@ -229,11 +227,11 @@ def regularization_path( graph : np.array,
     errors=np.empty(0)
     #while LA.norm(old_x-x) > 0:
 
-
+    x=0
     for k in range(60):
 
         x_old=np.copy(x)
-        x,z,u=admm(adj_mat,train_data,labels,l)
+        x=admm(graph,edges,data_mat,labels,l)
 
         for i in range(n): percent_error[i]=np.abs(A[i]@x[i]-labels[i])/labels[i]
         errors=np.append(errors,LA.norm(percent_error))
@@ -241,8 +239,6 @@ def regularization_path( graph : np.array,
         print("l = ",l)
     #    print("error = ",errors[k])
         #print(LA.norm(x_old-x,1))
-        if k % 10 == 0:
-            print("Regularization path ",k,"% complete")
 
         if k > 1 and errors[k]>errors[k-1]:
             return x_old,errors
@@ -277,8 +273,8 @@ n=np.shape(adj_mat_train)[0]
 A=np.hstack((train_data,np.ones((n,1))))
 
 # run admm with
-#x,z,u=admm(adj_mat_train,edge_pairs_train,train_data,train_labels,.5)
+#x=admm(adj_mat_train,edge_pairs_train,train_data,train_labels,.5)
 
-#x_reg,err_reg=regularization_path(adj_mat,train_data,labels)
-#x_geo=geographic(adj_mat,train_data,labels)
-#x_avg=global_average(labels)
+#x_reg,err_reg=regularization_path(adj_mat_train,edge_pairs_train,train_data,train_labels)
+#x_geo,err_geo=geographic(adj_mat_train,edge_pairs_train,train_data,train_labels)
+#x_avg=global_average(train_labels)
