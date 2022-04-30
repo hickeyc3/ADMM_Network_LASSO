@@ -195,7 +195,7 @@ def admm(graph : np.array,
 
         #break loop if we aren't improving any further for this lambda
         del_r=old_r-r
-        print(LA.norm(del_r))
+
     return x_k,z_k,u_k
 
 #===============================================================================
@@ -310,7 +310,7 @@ n=np.shape(adj_mat)[0]
 A=np.hstack((train_data,np.ones((n,1))))
 
 # run admm with
-#admm(adj_mat,edge_pairs,train_data,labels,.5)
+#x,z,u=admm(adj_mat,edge_pairs,train_data,labels,.5)
 
 #x_reg,err_reg=regularization_path(adj_mat,train_data,labels)
 #x_geo=geographic(adj_mat,train_data,labels)
