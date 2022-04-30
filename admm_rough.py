@@ -141,9 +141,57 @@ def admm_convex(graph : np.array,
 
     return x_k,z,u
 
-def regularization_path(graph, data_mat, prices):
+#===============================================================================
+#  global_average(prices) : baseline method to compute global average of house prices
+#================================================================================
+def global_average(prices):
+    return np.sum(prices)/len(prices)
+
+#===============================================================================
+#  geographic (graph,data_mat,prices) - geographic (lambda=0) baseline method,
+#   same arguments as regularization_path
+#================================================================================
+def geographic( graph : np.array,
+                data_mat : np.array,
+                prices : np.array) -> np.array:
+
 
     n=np.shape(graph)[0]
+    A=np.hstack((house_data,np.ones((n,1))))
+
+    i=1
+    percent_error=np.zeros(n)
+
+    errors=np.empty(0)
+    #while LA.norm(old_x-x) > 0:
+    while i < 100:
+
+        x,z,u=admm_convex(adj_mat,house_data,prices,0)
+
+        for i in range(n): percent_error[i]=np.abs(A[i]@x[i]-prices[i])/prices[i]
+        errors=np.append(errors,LA.norm(percent_error))
+        i+=1
+
+        if i % 10 == 0:
+            print("Geographic method ",l,"% complete")
+        #print (LA.norm(old_x-x))
+
+    return x,errors
+
+#===============================================================================
+#  regularization_path (graph,data_mat,prices) - runs ADMM with increasing lambda values
+#   graph - ajacency matrix form of graph, need the whole thing in this version
+#   data_mat - house_data constants matrix for regresssion problem (swap for your experiment)
+#   prices - prices of each house, the actual data point values for each experiment (swap for you experiment)
+#================================================================================
+def regularization_path( graph : np.array,
+                        data_mat : np.array,
+                        prices : np.array) -> np.array:
+
+
+    n=np.shape(graph)[0]
+    A=np.hstack((house_data,np.ones((n,1))))
+
     i=np.random.random_integers(n-1)
     j=np.copy(i)
     while j == i:
@@ -166,27 +214,32 @@ def regularization_path(graph, data_mat, prices):
     #initial lambda
     l = .01*(LA.norm(df_i)+LA.norm(df_j))/(2*graph[i][j])
 
+
     #TO DO: fix initial lambda if possible
     l=1
+    percent_error=np.zeros(n)
 
-    old_x=np.ones(len(x))
-
+    errors=np.empty(0)
     #while LA.norm(old_x-x) > 0:
     while l < 100:
-        old_x=np.copy(x)
+
         x,z,u=admm_convex(adj_mat,house_data,prices,l)
+
+        for i in range(n): percent_error[i]=np.abs(A[i]@x[i]-prices[i])/prices[i]
+        errors=np.append(errors,LA.norm(percent_error))
         l+=1
 
         if l % 10 == 0:
-            print(l,"% complete")
+            print("Regularization path ",l,"% complete")
         #print (LA.norm(old_x-x))
 
-    return x
+    return x,errors
 
 
 #example on how to run for a node with random adjacency matrix and constants,
 #try to have it in this form
 np.random.seed(8)
+
 
 adj_mat=np.random.rand(5,5)
 adj_mat=adj_mat @ adj_mat.T
@@ -194,13 +247,9 @@ for i in range(5): adj_mat[i][i]=0.0
 house_data=np.random.rand(5,3)
 prices=np.random.rand(5)
 
+
 """
+
 x=regularization_path(adj_mat,house_data,prices)
-n=np.shape(adj_mat)[0]
-A=np.hstack((house_data,np.ones((n,1))))
-errors=np.zeros(n)
 
-
-for i in range(n):
-    errors[i]=np.abs(A[i]@x[i]-price[i])/prices[i]
 """
