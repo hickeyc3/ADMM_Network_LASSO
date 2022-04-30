@@ -15,8 +15,8 @@ np.random.seed(8)
 warnings.filterwarnings("ignore")
 
 neighbors=5
-train_set_size=700
-test_set_size=20
+train_set_size=100
+test_set_size=50
 
 
 
@@ -107,7 +107,16 @@ for i in range(train_set_size):
     for j in range(train_set_size):
 
         if i != j:
-            distances[i].append((math.sqrt((train_locations[i][0]-train_locations[j][0])**2+(train_locations[i][1]-train_locations[i][1])**2),j))
+
+            delta_lat=math.radians(train_locations[i][0]-train_locations[j][0])
+            delta_lon=math.radians(train_locations[i][1]-train_locations[j][1])
+
+            r = math.pow(math.sin(delta_lat/2),2) + math.cos(train_locations[i][0])*math.cos(train_locations[j][0]) * math.pow(math.sin(delta_lon/2),2)
+            d =3961* 2 * math.atan2( math.sqrt(r), math.sqrt(1-r) )
+
+
+            distances[i].append((d,j))
+
 
     distances[i].sort(key = lambda node: node[0])
 
@@ -117,13 +126,9 @@ for i in range(train_set_size):
     for j in range(neighbors):
 
         neighbor=distances[i][j][1]
-        if distances[i][j][0] == 0:
-            adj_mat_train[i][neighbor]=0
-            adj_mat_train[neighbor][i]=0
 
-        else:
-            adj_mat_train[i][neighbor]=5/distances[i][j][0]
-            adj_mat_train[neighbor][i]=5/distances[i][j][0]
+        adj_mat_train[i][neighbor]=1/(distances[i][j][0]+.1)
+        adj_mat_train[neighbor][i]=1/(distances[i][j][0]+.1)
 
 
 #make adjacency matrix for adj_mat_test
@@ -138,7 +143,15 @@ for i in range(test_set_size):
     for j in range(test_set_size):
 
         if i != j:
-            distances[i].append((math.sqrt((test_locations[i][0]-test_locations[j][0])**2+(test_locations[i][1]-test_locations[i][1])**2),j))
+
+              delta_lat=math.radians(test_locations[i][0]-test_locations[j][0])
+              delta_lon=math.radians(test_locations[i][1]-test_locations[j][1])
+
+              r = math.pow(math.sin(delta_lat/2),2) + math.cos(test_locations[i][0])*math.cos(test_locations[j][0]) * math.pow(math.sin(delta_lon/2),2)
+              d =3961* 2 * math.atan2( math.sqrt(r), math.sqrt(1-r) )
+
+
+              distances[i].append((d,j))
 
     distances[i].sort(key = lambda node: node[0])
 
@@ -147,12 +160,10 @@ for i in range(test_set_size):
     for j in range(neighbors):
 
         neighbor=distances[i][j][1]
-        if distances[i][j][0] == 0:
-            adj_mat_test[i][neighbor]=0
-            adj_mat_test[neighbor][i]=0
-        else:
-            adj_mat_test[i][neighbor]=5/distances[i][j][0]
-            adj_mat_test[neighbor][i]=5/distances[i][j][0]
+
+        adj_mat_test[i][neighbor]=1/(distances[i][j][0]+.1)
+        adj_mat_test[neighbor][i]=1/(distances[i][j][0]+.1)
+
 
 
 edge_pairs_train=[]

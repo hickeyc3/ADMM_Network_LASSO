@@ -220,27 +220,8 @@ def regularization_path( graph : np.array,
 
     n=np.shape(graph)[0]
     A=np.hstack((train_data,np.ones((n,1))))
-    """
-    i=np.random.random_integers(n-1)
-    j=np.copy(i)
-    while j == i:
-        j=np.random.random_integers(n-1)
-
-    x_values,z,u=admm(adj_mat,edges,data_mat,labels,0)
-
-    x=(x_values[i]+x_values[j])/2
-
-    #Change this for each experiment, the gradient evaluations of f_i and f_j
-    #########################################################################
-    df_i = 2*(data_mat[i] @ x[:-1]+x[-1]-labels[i])*np.hstack((data_mat[i],1))+mu*2*(np.hstack((x[:-1],0)))
 
 
-    df_j = 2*(data_mat[j] @ x[:-1]+x[-1]-labels[j])*np.hstack((data_mat[j],1))+mu*2*(np.hstack((x[:-1],0)))
-    ########################################################################
-    """
-
-
-    #l = .01*(LA.norm(df_i)+LA.norm(df_j))/(2*graph[i][j])
     #initial lambda
     l=.005
     percent_error=np.zeros(n)
