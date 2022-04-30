@@ -1,5 +1,7 @@
 import cvxpy as cp
 import numpy as np
+import multiprocessing
+from functools import partial
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
 import csv
@@ -18,6 +20,7 @@ from PIL import Image
 
 
 mu=.5
+rho=.001
 
 #================================================================
 #   print_graph(g) - takes in snap graph to print out, also
@@ -32,11 +35,46 @@ def print_graph(g : snap.PNGraph) -> None:
     img.show()
 
 
+#===============================================================================
+#   update_x(i,graph,data_mat,z,u)) - allows x update to run in parallel
+#   i     - node the update is being run for
+#   graph - ajacency matrix form of graph, need the whole thing in this version
+#   data_mat - house_data constants matrix for regresssion problem (swap for your experiment)
+#   prices - prices of each house, the actual data point values for each experiment (swap for you experiment)
+#   z       - current z, not updated in parallel to avoid data hazard
+#   u       - current u, not updated in parallel to avoid data hazard
+#================================================================================
+def update_x(i : int,
+            graph : np.array,
+            data_mat : np.array,
+            prices : np.array,
+            z : np.array,
+            u : np.array) -> np.array:
+
+    x=cp.Variable(len(data_mat[0]))
+    x_offset=cp.Variable(1)
+
+    #Change for each experiment, this is the f_i(x_i) in the obj func
+    #################################################
+    obj = cp.sum_squares(data_mat[i] @ x+x_offset-prices[i])+ mu*cp.sum_squares(x)
+    ################################################
+
+
+    #add terms to obj func for each neighbor
+    for j in range(len(graph[i])):
+        if graph[i][j] != 0:
+            obj += rho*mu*cp.sum_squares(cp.hstack((x,x_offset))-z[i][j]+u[i][j])
+
+
+    prob = cp.Problem(cp.Minimize(obj))
+    prob.solve()
+
+    return np.hstack((x.value,x_offset.value))
 
 
 
 #===============================================================================
-#   admm_convex (G,c,l) - run convex fomrulation for each node i independently
+#   admm_convex (graph,data_mat,prices,l) - run convex fomrulation for each node i independently
 #   graph - ajacency matrix form of graph, need the whole thing in this version
 #   data_mat - house_data constants matrix for regresssion problem (swap for your experiment)
 #   prices - prices of each house, the actual data point values for each experiment (swap for you experiment)
@@ -52,23 +90,13 @@ def admm_convex(graph : np.array,
     epsilon=10**(-8)
 
 
-
-    rho=.001
-
     n=np.shape(graph)[0]
+    nodes=np.linspace(0,n-1,n,dtype='int')
+
     A=np.hstack((data_mat,np.ones((n,1))))
-    #make a vector of n cvxpy variables, one for each node
-    x_variables=[]
-    x_offsets=[]
 
 
-    for _ in range(n):
-        x_variables.append(cp.Variable(len(data_mat[0])))
-        x_offsets.append(cp.Variable(1))
-
-
-    #store space for x_k, z_i,j and u_i,j for the j neighbors of node i
-    x_k=np.zeros((n,len(data_mat[0])+1))
+    #store space for z_i,j and u_i,j for the j neighbors of node i
     z=np.zeros((n,n,len(data_mat[0])+1))
     u=np.zeros((n,n,len(data_mat[0])+1))
 
@@ -78,30 +106,18 @@ def admm_convex(graph : np.array,
     while LA.norm(del_r)>epsilon:
     #while LA.norm(r)>epsilon:
 
+        #do x-update for each node, so this is n processes in parallel
+        update_instance = partial(update_x, graph=graph,data_mat=data_mat,prices=prices,z=z,u=u)
 
-        #do x-update for each node
+        x_update_pool = multiprocessing.Pool(processes=n)
+
+        outputs = x_update_pool.map(update_instance, nodes)
+
+        x_k=np.array(outputs)
+
+
+        #now that we have our new iterate x values for all the nodes, we update z and u
         for i in range(n):
-
-            #Change for each experiment, this is the f_i(x_i) in the obj func
-            #################################################
-            obj = cp.sum_squares(data_mat[i] @ x_variables[i]+x_offsets[i]-prices[i])+ mu*cp.sum_squares(x_variables[i])
-            ################################################
-
-
-            #add terms to obj func for each neighbor
-            for j in range(len(graph[i])):
-                if graph[i][j] != 0:
-                    obj += rho*mu*cp.sum_squares(cp.hstack((x_variables[i],x_offsets[i]))-z[i][j]+u[i][j])
-
-
-            prob = cp.Problem(cp.Minimize(obj))
-            prob.solve()
-
-            x_k[i]=np.hstack((x_variables[i].value,x_offsets[i].value))
-
-
-
-            #update z and u
             for j in range(n):
                 if graph[i][j] != 0:
 
@@ -113,14 +129,16 @@ def admm_convex(graph : np.array,
                     u[i][j]+=(x_k[i]-z[i][j])
 
 
+
         old_r=np.copy(r)
         #compute residuals
         for i in range(n):
             r[i]=A[i]@x_k[i]-prices[i]
 
 
+        #break loop if we aren't improving any further for this lambda
         del_r=old_r-r
-        #print(LA.norm(r))
+
     return x_k,z,u
 
 def regularization_path(graph, data_mat, prices):
@@ -176,10 +194,13 @@ for i in range(5): adj_mat[i][i]=0.0
 house_data=np.random.rand(5,3)
 prices=np.random.rand(5)
 
+"""
 x=regularization_path(adj_mat,house_data,prices)
-
 n=np.shape(adj_mat)[0]
 A=np.hstack((house_data,np.ones((n,1))))
 errors=np.zeros(n)
+
+
 for i in range(n):
     errors[i]=np.abs(A[i]@x[i]-price[i])/prices[i]
+"""
