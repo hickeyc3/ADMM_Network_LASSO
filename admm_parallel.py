@@ -22,6 +22,8 @@ from generate_graph import adj_mat_test, test_data, test_labels, edge_pairs_test
 mu=.5
 rho=.001
 
+#max allowable number of processes to be spawned
+procs=64
 
 
 #===============================================================================
@@ -131,7 +133,8 @@ def admm(graph : np.array,
     z_k=np.zeros((n,n,len(data_mat[0])+1))
     u_k=np.zeros((n,n,len(data_mat[0])+1))
 
-    r=np.ones(n)
+    r=np.zeros(n)
+
     old_r=np.ones(n)
 
     while LA.norm(old_r-r)>epsilon:
@@ -140,7 +143,7 @@ def admm(graph : np.array,
         #do x-update for each node, so this is n processes in parallel
         update_instance = partial(update_x, graph=graph,data_mat=data_mat,labels=labels,z=z_k,u=u_k)
 
-        x_update_pool = multiprocessing.Pool(processes=n)
+        x_update_pool = multiprocessing.Pool(processes=procs)
 
         outputs = x_update_pool.map(update_instance, nodes)
 
@@ -151,7 +154,7 @@ def admm(graph : np.array,
 
         z_update_instance=partial(update_z, graph=graph,x=x_k,u=u_k,l=l)
 
-        z_update_pool = multiprocessing.Pool(processes=len(edges))
+        z_update_pool = multiprocessing.Pool(processes=procs)
 
         z_outputs = z_update_pool.map(z_update_instance, edges)
 
@@ -167,7 +170,7 @@ def admm(graph : np.array,
         u_copy=np.copy(u_k)
         u_update_instance=partial(update_u,x=x_k,z=z_k,u_copy=u_copy)
 
-        u_update_pool = multiprocessing.Pool(processes=len(edges))
+        u_update_pool = multiprocessing.Pool(processes=procs)
 
         u_outputs = u_update_pool.map(u_update_instance, edges)
 
@@ -184,7 +187,7 @@ def admm(graph : np.array,
         for i in range(n):
             r[i]=A[i]@x_k[i]-labels[i]
 
-
+        print(LA.norm(r))
     return x_k
 
 #===============================================================================
@@ -221,6 +224,7 @@ def regularization_path( graph : np.array,
 
 
     #initial lambda
+    #l=3000
     l=.005
     percent_error=np.zeros(n)
 
@@ -276,5 +280,5 @@ A=np.hstack((train_data,np.ones((n,1))))
 #x=admm(adj_mat_train,edge_pairs_train,train_data,train_labels,.5)
 
 #x_reg,err_reg=regularization_path(adj_mat_train,edge_pairs_train,train_data,train_labels)
-#x_geo,err_geo=geographic(adj_mat_train,edge_pairs_train,train_data,train_labels)
+#x_geo=geographic(adj_mat_train,edge_pairs_train,train_data,train_labels)
 #x_avg=global_average(train_labels)
