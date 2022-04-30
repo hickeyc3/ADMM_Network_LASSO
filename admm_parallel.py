@@ -284,31 +284,32 @@ def regularization_path( graph : np.array,
 #try to have it in this form
 np.random.seed(8)
 
-"""
+
 adj_mat=np.random.rand(5,5)
 adj_mat=adj_mat @ adj_mat.T
 for i in range(5): adj_mat[i][i]=0.0
+
+
+adj_mat[3][2]=0
+adj_mat[2][3]=0
+
+adj_mat[4][1]=0
+adj_mat[1][4]=0
 train_data=np.random.rand(5,3)
 labels=np.random.rand(5)
+edge_pairs=[]
+
+for i in range(5):
+    for j in range(5-i):
+
+        if adj_mat[i][j]!=0:
+            edge_pairs.append((i,j))
 
 
-x=regularization_path(adj_mat,train_data,labels)
 n=np.shape(adj_mat)[0]
 A=np.hstack((train_data,np.ones((n,1))))
-errors=np.zeros(n)
 
 
-for i in range(n):
-    errors[i]=np.abs(A[i]@x[i]-price[i])/labels[i]
-
-
-x_geo,err_geo=geographic(adj_mat,train_data,labels)
-x_mean=global_average(labels)
-"""
-n=np.shape(adj_mat)[0]
-A=np.hstack((train_data,np.ones((n,1))))
-"""
-x_reg,err_reg=regularization_path(adj_mat,train_data,labels)
-x_geo=geographic(adj_mat,train_data,labels)
-x_avg=global_average(labels)
-"""
+#x_reg,err_reg=regularization_path(adj_mat,train_data,labels)
+#x_geo=geographic(adj_mat,train_data,labels)
+#x_avg=global_average(labels)
