@@ -1,13 +1,13 @@
 import cvxpy as cp
 import numpy as np
 import csv
-import snap
 import warnings
 from PIL import Image
 import math
 
 warnings.filterwarnings("ignore")
 
+np.random.seed(8)
 
 
 neighbors=5
@@ -15,109 +15,143 @@ train_set_size=20
 test_set_size=20
 
 
+
 file = open("Sacramentorealestatetransactions_Normalized.csv", "rU")
 file.readline()
 
+
+full_data=np.zeros((985,6))
+addr=[]
 i=0
-for line in file:
+for l in file:
 
     h=l.split(",")
 
-    full_data=np.append(full_data,np.zeros())
-    #store beds constant
-    full_data[i][0]=float(h[4])
-
-    #store baths constant
-    train_data[i][1]=float(h[5])
-
-    #store sqft constant
-    train_data[i][2]=float(h[6])
-
-    #store actual price
-    labels[i]=float(h[9])
-
-
-
-
-exit()
-
-
-
-
-nodes = G.GetNodes()
-edges = G.GetEdges()
-
-house_list=[]
-
-for NI in G.Nodes():
-        house_list.append(NI.GetId())
-
-house_list.sort()
-house_dict={}
-for i in range(len(house_list)):
-    house_dict[house_list[i]]=i
-
-
-file = open("Sacramentorealestatetransactions_Normalized.csv", "rU")
-file.readline()
-
-line_count=0
-house_count=0
-
-#store relevant house data for features and actual price
-train_data=np.zeros((len(house_list),3))
-test_data=np.zeros((len(house_list),3))
-labels=np.zeros(len(house_list))
-for l in file:
-    line_count+=1
-
-    if house_list[house_count]==line_count:
-        h=l.split(",")
-
+    if float(h[4]) != 0 and float(h[12]) != 0:
 
         #store beds constant
-        train_data[house_count][0]=float(h[4])
+        full_data[i][0]=float(h[4])
 
         #store baths constant
-        train_data[house_count][1]=float(h[5])
+        full_data[i][1]=float(h[5])
 
         #store sqft constant
-        train_data[house_count][2]=float(h[6])
+        full_data[i][2]=float(h[6])
 
-        #store actual price
-        labels[house_count]=float(h[9])
+        #store normalized actual price
+        full_data[i][3]=float(h[12])
 
+        #store latitude
+        full_data[i][4]=float(h[10])
 
-        house_count+=1
+        #store longitude
+        full_data[i][5]=float(h[11])
 
-    if house_count==len(house_list):
-        break
-
-#create adjacency matrix for final graph
-adj_mat=np.zeros((nodes,nodes))
-
-edge_list=np.zeros((edges,3))
-edge_pairs=[]
-k=0
-
-#edgeWeights is a hash table with (int,int) pair keys and float values
-#store all of snap structures edge weights in 2-D numpy adjacency matrix
-for e in edgeWeights:
-
-    i=e.GetVal1()
-    j=e.GetVal2()
-
-    edge_pairs.append((int(house_dict[i]),int(house_dict[j])))
-    weight=edgeWeights(e)
-
-    edge_list[k][0]=i
-    edge_list[k][1]=j
-    edge_list[k][2]=weight
-
-    k+=1
+        addr.append(h[0])
+        #train_data[i][4]=float
+        i+=1
 
 
+full_count=i
+full_data=full_data[:full_count]
 
-for i in edge_list:
-    adj_mat[house_dict[i[0]]][house_dict[i[1]]]=i[2]
-    adj_mat[house_dict[i[1]]][house_dict[i[0]]]=i[2]
+train_data=np.zeros((train_set_size,3))
+train_list=[]
+train_labels=np.zeros(train_set_size)
+train_locations=[]
+
+for k in range(train_set_size):
+    i=np.random.random_integers(full_count-k)
+
+    train_data[k]=full_data[i][:3]
+    train_labels[k]=full_data[i][3]
+    train_locations.append((full_data[i][4],full_data[i][5]))
+    train_list.append((i,addr[i]))
+
+    full_data=np.delete(full_data,i,0)
+    full_count=full_count-k
+
+test_data=np.zeros((test_set_size,3))
+test_list=[]
+test_labels=np.zeros(test_set_size)
+test_locations=[]
+
+for k in range(test_set_size):
+    i=np.random.random_integers(full_count-k)
+
+    test_data[k]=full_data[i][:3]
+    test_labels[k]=full_data[i][3]
+    test_locations.append((full_data[i][4],full_data[i][5]))
+    test_list.append((i,addr[i]))
+
+    full_data=np.delete(full_data,i,0)
+    full_count=full_count-k
+
+
+#make adjacency matrix for adj_mat_train
+adj_mat_train=np.zeros((train_set_size,train_set_size))
+
+#get the 5 nearest nodes to each other node
+distances=[]
+
+for i in range(train_set_size):
+    distances.append([])
+    for j in range(train_set_size):
+
+        if i != j:
+            distances[i].append((math.sqrt((train_locations[i][0]-train_locations[j][0])**2+(train_locations[i][1]-train_locations[i][1])**2),j))
+
+    distances[i].sort(key = lambda node: node[0])
+
+
+for i in range(train_set_size):
+    for j in range(neighbors):
+
+        neighbor=distances[i][j][1]
+
+        adj_mat_train[i][neighbor]=5/distances[i][j][0]
+        adj_mat_train[neighbor][i]=5/distances[i][j][0]
+
+
+#make adjacency matrix for adj_mat_test
+adj_mat_test=np.zeros((test_set_size,test_set_size))
+edge_pairs_test=[]
+
+#get the 5 nearest nodes to each other node
+distances=[]
+
+for i in range(test_set_size):
+    distances.append([])
+    for j in range(test_set_size):
+
+        if i != j:
+            distances[i].append((math.sqrt((test_locations[i][0]-test_locations[j][0])**2+(test_locations[i][1]-test_locations[i][1])**2),j))
+
+    distances[i].sort(key = lambda node: node[0])
+
+
+for i in range(test_set_size):
+    for j in range(neighbors):
+
+        neighbor=distances[i][j][1]
+
+        adj_mat_test[i][neighbor]=5/distances[i][j][0]
+        adj_mat_test[neighbor][i]=5/distances[i][j][0]
+
+
+edge_pairs_train=[]
+
+for i in range(train_set_size):
+    for j in range(i,train_set_size):
+
+        if adj_mat_train[i][j]!=0:
+            edge_pairs_train.append((i,j))
+
+
+edge_pairs_test=[]
+
+for i in range(test_set_size):
+    for j in range(i,test_set_size):
+
+        if adj_mat_test[i][j]!=0:
+            edge_pairs_test.append((i,j))

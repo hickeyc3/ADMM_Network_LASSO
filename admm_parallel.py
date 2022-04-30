@@ -15,7 +15,8 @@ from PIL import Image
 # Each part needs the respective adjacency matrix and then the constants
 # needed for the f_i(x_i) needed for the objective, I also have a list of house
 # numbers for identification.
-#from generate_graph import adj_mat, train_data, labels, test_data, edge_pairs
+from generate_graph import adj_mat_train, train_data, train_labels, edge_pairs_train
+from generate_graph import adj_mat_test, test_data, test_labels, edge_pairs_test
 
 
 mu=.5
@@ -271,16 +272,13 @@ def regularization_path( graph : np.array,
 #example on how to run for a node with random adjacency matrix and constants,
 #try to have it in this form
 np.random.seed(8)
-
-
+"""
 adj_mat=np.random.rand(5,5)
 adj_mat=adj_mat @ adj_mat.T
 for i in range(5): adj_mat[i][i]=0.0
 
-
 adj_mat[3][2]=0
 adj_mat[2][3]=0
-
 adj_mat[4][1]=0
 adj_mat[1][4]=0
 train_data=np.random.rand(5,3)
@@ -288,17 +286,17 @@ labels=np.random.rand(5)
 edge_pairs=[]
 
 for i in range(5):
-    for j in range(5-i):
+    for j in range(i,5):
 
         if adj_mat[i][j]!=0:
             edge_pairs.append((i,j))
+"""
 
-
-n=np.shape(adj_mat)[0]
+n=np.shape(adj_mat_train)[0]
 A=np.hstack((train_data,np.ones((n,1))))
 
 # run admm with
-#x,z,u=admm(adj_mat,edge_pairs,train_data,labels,.5)
+#x,z,u=admm(adj_mat_train,edge_pairs_train,train_data,train_labels,.5)
 
 #x_reg,err_reg=regularization_path(adj_mat,train_data,labels)
 #x_geo=geographic(adj_mat,train_data,labels)
