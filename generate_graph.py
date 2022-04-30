@@ -7,9 +7,39 @@ from PIL import Image
 import math
 
 warnings.filterwarnings("ignore")
-neighbors=3
-remove_count_test=980
-remove_count_val=0
+
+
+
+neighbors=5
+train_set_size=20
+test_set_size=20
+
+
+file = open("Sacramentorealestatetransactions_Normalized.csv", "rU")
+file.readline()
+
+i=0
+for line in file:
+
+    h=l.split(",")
+
+    full_data=np.append(full_data,np.zeros())
+    #store beds constant
+    full_data[i][0]=float(h[4])
+
+    #store baths constant
+    train_data[i][1]=float(h[5])
+
+    #store sqft constant
+    train_data[i][2]=float(h[6])
+
+    #store actual price
+    labels[i]=float(h[9])
+
+
+
+
+exit()
 
 
 #Generate graph, edge weights
@@ -55,7 +85,6 @@ for i in range(remove_count_val):
 	G.DelNode(temp)
 	validationList.Add(temp)
 
-#For each node, find closest neighbors and add edge, weight = 5/distance
 edgeWeights = snap.TIntPrFltH()
 for NI in G.Nodes():
 	distances = snap.TIntFltH()
@@ -82,6 +111,11 @@ for NI in G.Nodes():
 			edgeWeights.AddDat(temp, 1/(it.GetDat()+ 0.1))
 		it.Next()
 
+
+
+
+
+
 nodes = G.GetNodes()
 edges = G.GetEdges()
 
@@ -103,8 +137,9 @@ line_count=0
 house_count=0
 
 #store relevant house data for features and actual price
-house_data=np.zeros((len(house_list),3))
-prices=np.zeros(len(house_list))
+train_data=np.zeros((len(house_list),3))
+test_data=np.zeros((len(house_list),3))
+labels=np.zeros(len(house_list))
 for l in file:
     line_count+=1
 
@@ -113,16 +148,16 @@ for l in file:
 
 
         #store beds constant
-        house_data[house_count][0]=float(h[4])
+        train_data[house_count][0]=float(h[4])
 
         #store baths constant
-        house_data[house_count][1]=float(h[5])
+        train_data[house_count][1]=float(h[5])
 
         #store sqft constant
-        house_data[house_count][2]=float(h[6])
+        train_data[house_count][2]=float(h[6])
 
         #store actual price
-        prices[house_count]=float(h[9])
+        labels[house_count]=float(h[9])
 
 
         house_count+=1
@@ -134,7 +169,7 @@ for l in file:
 adj_mat=np.zeros((nodes,nodes))
 
 edge_list=np.zeros((edges,3))
-
+edge_pairs=[]
 k=0
 
 #edgeWeights is a hash table with (int,int) pair keys and float values
@@ -143,6 +178,8 @@ for e in edgeWeights:
 
     i=e.GetVal1()
     j=e.GetVal2()
+
+    edge_pairs.append((int(house_dict[i]),int(house_dict[j])))
     weight=edgeWeights(e)
 
     edge_list[k][0]=i
@@ -156,17 +193,3 @@ for e in edgeWeights:
 for i in edge_list:
     adj_mat[house_dict[i[0]]][house_dict[i[1]]]=i[2]
     adj_mat[house_dict[i[1]]][house_dict[i[0]]]=i[2]
-"""
-#Finally put the weight undirected graph into the form of an adjacency matrix
-i=0
-while i < len(edge_list):
-    curr=house_dict[edge_list[i][0]]
-
-    while i < len(edge_list) and curr==house_dict[edge_list[i][0]]:
-
-        adj_mat[curr][house_dict[edge_list[i][1]]]=edge_list[i][2]
-        adj_mat[house_dict[edge_list[i][1]]][curr]=edge_list[i][2]
-        curr=house_dict[edge_list[i][0]]
-        i+=1
-"""
-#print nodes, edges
