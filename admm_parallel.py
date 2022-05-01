@@ -9,25 +9,23 @@ import warnings
 from PIL import Image
 
 
-
-
 #This is just for my part on the housing experiment
 # Each part needs the respective adjacency matrix and then the constants
 # needed for the f_i(x_i) needed for the objective, I also have a list of house
 # numbers for identification.
 from generate_graph import generate_graph
 
-train_set_size=10
+train_set_size=20
 test_set_size=10
 
-adj_mat_train, train_data, train_labels, edge_pairs_train, adj_mat_test, test_data, test_labels, edge_pairs_test = generate_graph(train_set_size,test_set_size)
+adj_mat_train, train_data, train_labels, edge_pairs_train, test_data, test_labels = generate_graph(train_set_size,test_set_size)
 
 
 mu=.5
 rho=.001
 
 #max allowable number of processes to be spawned
-procs=64
+procs=100
 
 
 #===============================================================================
@@ -191,7 +189,7 @@ def admm(graph : np.array,
         for i in range(n):
             r[i]=A[i]@x_k[i]-labels[i]
 
-        print(LA.norm(r))
+
     return x_k
 
 #===============================================================================
@@ -229,29 +227,26 @@ def regularization_path( graph : np.array,
 
     #initial lambda
     #l=3000
-    l=.005
+    l=3000
     percent_error=np.zeros(n)
 
     errors=np.empty(0)
     #while LA.norm(old_x-x) > 0:
 
     x=0
-    for k in range(60):
+    for k in range(8):
 
         x_old=np.copy(x)
         x=admm(graph,edges,data_mat,labels,l)
 
         for i in range(n): percent_error[i]=np.abs(A[i]@x[i]-labels[i])/labels[i]
         errors=np.append(errors,LA.norm(percent_error))
-        l+=.001
-        print("l = ",l)
-    #    print("error = ",errors[k])
-        #print(LA.norm(x_old-x,1))
+        l+=1
 
-        if k > 1 and errors[k]>errors[k-1]:
-            return x_old,errors
+        if LA.norm(x_old-x)<10**(-4) or (k > 1 and errors[k]>errors[k-1]):
+            return x_old
 
-    return x,errors
+    return x
 
 
 #example on how to run for a node with random adjacency matrix and constants,
@@ -277,12 +272,25 @@ for i in range(5):
             edge_pairs.append((i,j))
 """
 
-n=np.shape(adj_mat_train)[0]
-A=np.hstack((train_data,np.ones((n,1))))
 
 # run admm with
 #x=admm(adj_mat_train,edge_pairs_train,train_data,train_labels,.5)
 
-#x_reg,err_reg=regularization_path(adj_mat_train,edge_pairs_train,train_data,train_labels)
-#x_geo=geographic(adj_mat_train,edge_pairs_train,train_data,train_labels)
-#x_avg=global_average(train_labels)
+x_reg=regularization_path(adj_mat_train,edge_pairs_train,train_data,train_labels)
+x_geo=geographic(adj_mat_train,edge_pairs_train,train_data,train_labels)
+avg=global_average(train_labels)
+
+geo_errors=np.empty(0)
+reg_errors=np.empty(0)
+global_avg_errors=np.empty(0)
+
+for i in range(len(test_labels)):
+    if test_labels[i] != 0:
+        geo_errors=np.append(geo_errors,np.abs(test_data[i]@x_geo[i][:-1]+x_geo[i][-1]-test_labels[i])**2)
+        reg_errors=np.append(reg_errors,np.abs(test_data[i]@x_reg[i][:-1]+x_reg[i][-1]-test_labels[i])**2)
+        global_avg_errors=np.append(global_avg_errors,(avg-test_labels[i])**2)
+
+
+
+err=np.array([np.sum(geo_errors)/test_set_size,np.sum(reg_errors)/test_set_size,np.sum(global_avg_errors)/test_set_size])
+#np.savetxt(f"errors_size_{train_set_size}", err, delimiter = ",")
