@@ -15,8 +15,12 @@ from PIL import Image
 # Each part needs the respective adjacency matrix and then the constants
 # needed for the f_i(x_i) needed for the objective, I also have a list of house
 # numbers for identification.
-from generate_graph import adj_mat_train, train_data, train_labels, edge_pairs_train
-from generate_graph import adj_mat_test, test_data, test_labels, edge_pairs_test
+from generate_graph import generate_graph
+
+train_set_size=10
+test_set_size=10
+
+adj_mat_train, train_data, train_labels, edge_pairs_train, adj_mat_test, test_data, test_labels, edge_pairs_test = generate_graph(train_set_size,test_set_size)
 
 
 mu=.5
