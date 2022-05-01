@@ -13,23 +13,33 @@ import math
 procs=8
 
 #uncomment to visualize graph
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import networkx as nx
 
+import os
+mypath = '/home/yan/Documents/git/cs520_network_lasso/NetworkLasso-master/svm_adapt'
+os.chdir(mypath)
 
 warnings.filterwarnings("ignore")
 nodes = 100
-samepart = 0.5
-diffpart = 0.1
+samepart = 0.15
+diffpart = 0.07
 partitions = 5
-sizeOptVar = 6
-trainSetSize = 5
+sizeOptVar = 11
+trainSetSize = 8
 numtests = trainSetSize
-testSetSize = 2
+testSetSize = 4
+c = 0.75
+rho=.0001
+#useConvex = 1
+numiters = 10
+np.random.seed(2)
+
 def generate_graph_svm(nodes,samepart,diffpart,partitions,sizeOptVar,trainSetSize,testSetSize):
     adj_mat=np.zeros((nodes,nodes))
     sizepart = nodes/partitions
     edge_pairs=[]
+    correctedges = 0
     for i in range(nodes):
         for j in range(nodes):
             if (i<j):
@@ -37,6 +47,7 @@ def generate_graph_svm(nodes,samepart,diffpart,partitions,sizeOptVar,trainSetSiz
                     if(np.random.random() >= 1-samepart):
                         adj_mat[i][j]=1
                         edge_pairs.append((i,j))
+                        correctedges = correctedges +1
                 else:
                     if(np.random.random() >= 1-diffpart):
                         adj_mat[i][j]=1
@@ -63,28 +74,22 @@ def generate_graph_svm(nodes,samepart,diffpart,partitions,sizeOptVar,trainSetSiz
         for j in range(testSetSize):
             y_test[j,i] = np.sign([np.dot(a_part.transpose(), x_test[j*sizeOptVar:(j+1)*sizeOptVar,i])+vtest[j,i]])
     sizeData = trainingSet.shape[0]#size of data available for one node, including all x and y
-
+    edges = len(edge_pairs)
+    print (nodes, edges, correctedges/float(edges), 1 - float(correctedges)/edges)
     return adj_mat,edge_pairs,trainingSet, x_test, y_test,sizeData
 
 adj_mat,edge_pairs,trainingSet, x_test, y_test,sizeData = generate_graph_svm(nodes,samepart,diffpart,partitions,sizeOptVar,trainSetSize,testSetSize)
 
-#Initialize variables to 0
-#my_x = np.zeros((sizeOptVar,nodes))
-#neighs = np.zeros(((2*sizeOptVar+1)*maxdeg,nodes))
 G = nx.Graph()
 G.add_nodes_from(list(np.arange(nodes)))
 G.add_edges_from(edge_pairs)
 degrees = [val for (node, val) in G.degree()]
 maxdeg = max(degrees)
 edges = G.number_of_edges()
-c = 0.75
-rho=.0001
-lamb = 3000
-l = lamb
-useConvex = 1
-numiters = 10
-graph = adj_mat
-data_mat = np.concatenate((trainingSet,np.tile([c, numtests,sizeData,rho,l,sizeOptVar], (nodes,1)).transpose()), axis=0).transpose()
+#nx.draw(G)
+#plt.show()
+
+data_mat = np.concatenate((trainingSet,np.tile([c, numtests,sizeData,rho,sizeOptVar], (nodes,1)).transpose()), axis=0).transpose()
 #===============================================================================
 #   update_x(i,graph,data_mat,z,u) - allows x update to run in parallel
 #   i     - node the update is being run for
@@ -273,7 +278,7 @@ def admm(graph : np.array,
             for j in range(trainSetSize):
                 x_train_persample = np.asmatrix(x_train_pernode[j*sizeOptVar:(j+1)*sizeOptVar])
                 r[i*trainSetSize+j]=abs(x_train_persample@x_k[i]*y_train_pernode[j]-1)
-                v_acc[i*trainSetSize+j]=np.sign(x_train_persample@x_k[i])!=y_train_pernode[j]
+                v_acc[i*trainSetSize+j]=np.sign(x_train_persample@x_k[i])==y_train_pernode[j]
         RawPerf = [LA.norm(r),LA.norm(r-old_r),sum(v_acc)/(n*trainSetSize)]
         Output = ['{:.8f}'.format(elem) for elem in RawPerf]
 		#print (Output)
@@ -295,22 +300,20 @@ def regularization_path( graph : np.array,
                         rho: float,
                         start_l:float,
                         step_l:float,
-                        n_l:int) -> np.array:
+                        n_l:int,
+                        isMul: int) -> np.array:
 
 
     n=np.shape(graph)[0]
     z_k=np.zeros((n,n,sizeOptVar))
     u_k=np.zeros((n,n,sizeOptVar))
-    mat_trainErr = np.zeros((n_l,2))
-    mat_testErr = np.zeros((n_l,2))
+    mat_trainPerf = np.zeros((n_l,2))
+    mat_testPerf = np.zeros((n_l,2))
 
     #initial lambda
-    #l=3000
-    l=start_l
-    #percent_error=np.zeros(n)
+    #l=start_l
+    l=0
 
-    #x_old=np.zeros((nodes,sizeOptVar))
-    #errors=np.empty(0)
     #while LA.norm(old_x-x) > 0:
     for k in range(n_l):
         train_r = np.zeros(n*trainSetSize)
@@ -329,20 +332,20 @@ def regularization_path( graph : np.array,
             for j in range(trainSetSize):
                 x_train_persample = np.asmatrix(x_train_pernode[j*sizeOptVar:(j+1)*sizeOptVar])
                 train_r[i*trainSetSize+j]=abs(x_train_persample@x[i]*y_train_pernode[j]-1)
-                train_acc[i*trainSetSize+j]=np.sign(x_train_persample@x[i])!=y_train_pernode[j]
+                train_acc[i*trainSetSize+j]=np.sign(x_train_persample@x[i])==y_train_pernode[j]
 
             x_test_pernode = x_test[:,i]
             y_test_pernode = y_test[:,i]
             for j in range(testSetSize):
                 x_test_persample = np.asmatrix(x_test_pernode[j*sizeOptVar:(j+1)*sizeOptVar])
                 test_r[i*testSetSize+j]=abs(x_test_persample@x[i]*y_test_pernode[j]-1)
-                test_acc[i*testSetSize+j]=np.sign(x_test_persample@x[i])!=y_test_pernode[j]
+                test_acc[i*testSetSize+j]=np.sign(x_test_persample@x[i])==y_test_pernode[j]
         trainPerf = [LA.norm(train_r),sum(train_acc)/(n*trainSetSize)]
         trainPerf_formated = ['{:.4f}'.format(elem) for elem in trainPerf]
         testPerf = [LA.norm(test_r),sum(test_acc)/(n*testSetSize)]
         testPerf_formated = ['{:.4f}'.format(elem) for elem in testPerf]
-        mat_trainErr[k]=trainPerf
-        mat_testErr[k] = testPerf
+        mat_trainPerf[k]=trainPerf
+        mat_testPerf[k] = testPerf
 
         print("l = ",l)
         print("train perf:", trainPerf_formated)
@@ -351,46 +354,65 @@ def regularization_path( graph : np.array,
         #print("sum of r = ",sum(r))
     #    print("error = ",errors[k])
         #print(LA.norm(x_old-x,1))
-        l+=step_l
-        #l = l*10
+        if(l==0):
+            l=start_l
+        else:
+            if(isMul):
+                l=l*step_l
+            else:
+                l = l+step_l
 
         # if k > 1 and errors[k]>errors[k-1]:
         #     return x_old,errors
 
-    return x,mat_trainErr,mat_testErr
+    return x,mat_trainPerf,mat_testPerf
 
 #===============================================================================
 #  global_average(labels) : baseline method to compute global average of house labels
 #================================================================================
 def global_average(data_mat):
         #compute primal residuals
+        n = data_mat.shape[0]
+        train_r = np.zeros(n)
+        test_r = np.zeros(n)
+        train_acc = np.zeros(n)
+        test_acc = np.zeros(n)
         for i in range(n):
             tempData_persample = data_mat[i,:]
             rawData = tempData_persample[0:sizeData]
-            x_train_pernode = rawData[0:trainSetSize*sizeOptVar]
+            #x_train_pernode = rawData[0:trainSetSize*sizeOptVar]
             y_train_pernode = rawData[trainSetSize*sizeOptVar: trainSetSize*(sizeOptVar+1)]
-            for j in range(trainSetSize):
-                x_train_persample = np.asmatrix(x_train_pernode[j*sizeOptVar:(j+1)*sizeOptVar])
-                train_r[i*trainSetSize+j]=abs(x_train_persample@x[i]*y_train_pernode[j]-1)
-                train_acc[i*trainSetSize+j]=np.sign(x_train_persample@x[i])!=y_train_pernode[j]
+            avg_y = np.mean(y_train_pernode)
+            train_r[i]=np.sum(abs(y_train_pernode*avg_y-1))
+            train_acc[i]=np.sum(np.sign(y_train_pernode)==avg_y)
 
-            x_test_pernode = x_test[:,i]
+
             y_test_pernode = y_test[:,i]
-            for j in range(testSetSize):
-                x_test_persample = np.asmatrix(x_test_pernode[j*sizeOptVar:(j+1)*sizeOptVar])
-                test_r[i*testSetSize+j]=abs(x_test_persample@x[i]*y_test_pernode[j]-1)
-                test_acc[i*testSetSize+j]=np.sign(x_test_persample@x[i])!=y_test_pernode[j]
+            test_r[i]=np.sum(abs(y_test_pernode*avg_y-1))
+            test_acc[i]=np.sum(np.sign(y_test_pernode)==avg_y)
+
         trainPerf = [LA.norm(train_r),sum(train_acc)/(n*trainSetSize)]
         trainPerf_formated = ['{:.4f}'.format(elem) for elem in trainPerf]
         testPerf = [LA.norm(test_r),sum(test_acc)/(n*testSetSize)]
         testPerf_formated = ['{:.4f}'.format(elem) for elem in testPerf]
+        return trainPerf,testPerf
 
 
-start_l = 0.03
-step_l = .01
-n_l = 5
-x_reg,mat_trainErr,mat_testErr=regularization_path(adj_mat,edge_pairs,data_mat,rho,start_l,step_l,n_l)
-#using start_l = 0
-x_geo,geo_trainErr,geo_testErr=regularization_path(adj_mat,edge_pairs,data_mat,rho,0,step_l,1)
+# isMul = 0# isMul =1 update l by multiplication, otherwise by addition
+# start_l = 0.2
+# step_l = .2
+# n_l = 5
 
-avg=global_average(train_labels)
+isMul = 1# isMul =1 update l by multiplication, otherwise by addition
+start_l = 0.001
+step_l = 10
+n_l = 6
+
+x_reg,reg_trainPerf,reg_testPerf=regularization_path(adj_mat,edge_pairs,data_mat,rho,start_l,step_l,n_l,isMul)
+
+np.save(f'reg_low_trainPerf_sizeOptVar_{sizeOptVar}_testSize_{testSetSize}_trainSize_{trainSetSize}', reg_trainPerf)
+np.save(f'reg_low_testPerf_sizeOptVar_{sizeOptVar}_testSize_{testSetSize}_trainSize_{trainSetSize}', reg_testPerf)
+
+avg_trainPerf,avg_testPerf=global_average(data_mat)
+np.save(f'avg_trainPerf_sizeOptVar_{sizeOptVar}_testSize_{testSetSize}_trainSize_{trainSetSize}', avg_trainPerf)
+np.save(f'avg_testPerf_sizeOptVar_{sizeOptVar}_testSize_{testSetSize}_trainSize_{trainSetSize}', avg_testPerf)
